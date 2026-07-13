@@ -1,0 +1,6 @@
+{
+  "name": "Clean City",
+  "description": "An interactive waste management platform featuring dynamic 3D isometric tracking, public reporting, administrator dispatch hub, and municipal campaign management to keep the city clean.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
