@@ -10,7 +10,24 @@ import AdminDashboard from './components/AdminDashboard';
 import RegisterComplaint from './components/RegisterComplaint';
 import ThreeDBackground from './components/ThreeDBackground';
 import Logo from './components/Logo';
-import { Trash2, Truck as TruckIcon, AlertTriangle, ShieldCheck, LogOut, Map as MapIcon, User as UserIcon, Landmark, Star, Award, HeartHandshake, Info, Bell, Send, MessageSquare, X, Sparkles, Check, Image, Building, ClipboardList, Shield } from 'lucide-react';
+import SupabaseStatusPanel from './components/SupabaseStatusPanel';
+import { 
+  verifySupabaseConnection, 
+  getSupabaseReports, 
+  insertSupabaseReport, 
+  updateSupabaseReport, 
+  getSupabaseBins, 
+  updateSupabaseBin, 
+  getSupabaseTrucks, 
+  updateSupabaseTruck, 
+  getSupabaseCampaigns, 
+  updateSupabaseCampaign, 
+  getSupabaseUser, 
+  upsertSupabaseUser, 
+  updateSupabaseUserPoints,
+  seedSupabaseDatabase
+} from './supabaseService';
+import { Trash2, Truck as TruckIcon, AlertTriangle, ShieldCheck, LogOut, Map as MapIcon, User as UserIcon, Landmark, Star, Award, HeartHandshake, Info, Bell, Send, MessageSquare, X, Sparkles, Check, Image, Building, ClipboardList, Shield, Database } from 'lucide-react';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<'landing' | 'map' | 'hub' | 'portal' | 'complaint'>('landing');
@@ -27,6 +44,77 @@ export default function App() {
   const [campaigns, setCampaigns] = useState<Campaign[]>(INITIAL_CAMPAIGNS);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+
+  // Supabase Status State
+  const [showDbStatus, setShowDbStatus] = useState(false);
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    isConnected: boolean;
+    missingTables: string[];
+    isFetching: boolean;
+    error: string | null;
+  }>({
+    isConnected: false,
+    missingTables: [],
+    isFetching: true,
+    error: null,
+  });
+
+  // Database status checking and sync function
+  const triggerDbRefresh = async () => {
+    setSupabaseStatus((prev) => ({ ...prev, isFetching: true }));
+    try {
+      const statusState = await verifySupabaseConnection();
+      if (statusState.isConnected) {
+        if (statusState.missingTables.length === 0) {
+          // Sync live state from Supabase
+          await seedSupabaseDatabase(); // Auto seed if empty
+          const [dbReports, dbBins, dbTrucks, dbCampaigns] = await Promise.all([
+            getSupabaseReports(),
+            getSupabaseBins(),
+            getSupabaseTrucks(),
+            getSupabaseCampaigns()
+          ]);
+          setReports(dbReports);
+          setBins(dbBins);
+          setTrucks(dbTrucks);
+          setCampaigns(dbCampaigns);
+
+          setSupabaseStatus({
+            isConnected: true,
+            missingTables: [],
+            isFetching: false,
+            error: null
+          });
+        } else {
+          setSupabaseStatus({
+            isConnected: true,
+            missingTables: statusState.missingTables,
+            isFetching: false,
+            error: `Missing tables: ${statusState.missingTables.join(', ')}`
+          });
+        }
+      } else {
+        setSupabaseStatus({
+          isConnected: false,
+          missingTables: [],
+          isFetching: false,
+          error: statusState.errorMessage
+        });
+      }
+    } catch (err: any) {
+      setSupabaseStatus({
+        isConnected: false,
+        missingTables: [],
+        isFetching: false,
+        error: err.message || 'Verification failed'
+      });
+    }
+  };
+
+  // Initial Supabase Load
+  useEffect(() => {
+    triggerDbRefresh();
+  }, []);
 
   // Notifications & AI Assistant states
   const [notifications, setNotifications] = useState<SystemNotification[]>([
@@ -81,15 +169,29 @@ export default function App() {
   };
 
   // User Actions
-  const handleLogin = (role: UserRole, email: string, name: string) => {
-    setLoggedInUser({
+  const handleLogin = async (role: UserRole, email: string, name: string) => {
+    const defaultUser: User = {
       id: `user-${Date.now()}`,
       name,
       email,
       role,
       points: role === 'public' ? 120 : 0, // start with points for citizens
-    });
+    };
+    setLoggedInUser(defaultUser);
     setCurrentTab('map');
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0) {
+        const dbUser = await getSupabaseUser(email);
+        if (dbUser) {
+          setLoggedInUser(dbUser);
+        } else {
+          await upsertSupabaseUser(defaultUser);
+        }
+      }
+    } catch (err) {
+      console.warn('Supabase User Sync Error:', err);
+    }
   };
 
   const handleLogout = () => {
@@ -108,7 +210,7 @@ export default function App() {
   }, [bins, reports]);
 
   // Citizen adds a report
-  const handleAddReport = (newRep: Omit<Report, 'id' | 'createdAt' | 'upvotes' | 'upvotedBy' | 'reporterName' | 'reporterEmail'> & { reporterName?: string; reporterEmail?: string }) => {
+  const handleAddReport = async (newRep: Omit<Report, 'id' | 'createdAt' | 'upvotes' | 'upvotedBy' | 'reporterName' | 'reporterEmail'> & { reporterName?: string; reporterEmail?: string }) => {
     const freshReport: Report = {
       ...newRep,
       id: `rep-${Math.floor(Math.random() * 900) + 100}`,
@@ -122,8 +224,9 @@ export default function App() {
     setReports((prev) => [freshReport, ...prev]);
 
     // Reward points to the reporting citizen
+    let rewardPoints = 50;
     if (loggedInUser && loggedInUser.role === 'public') {
-      const rewardPoints = freshReport.wastageArea?.includes('Large') || freshReport.wastageArea?.includes('Massive') ? 75 : 50;
+      rewardPoints = freshReport.wastageArea?.includes('Large') || freshReport.wastageArea?.includes('Massive') ? 75 : 50;
       setLoggedInUser((prev) => prev ? { ...prev, points: prev.points + rewardPoints } : null);
       
       triggerNotification(
@@ -143,27 +246,53 @@ export default function App() {
       );
     }
     setHighlightedId(freshReport.id);
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0) {
+        await insertSupabaseReport(freshReport);
+        if (loggedInUser && loggedInUser.role === 'public') {
+          await updateSupabaseUserPoints(loggedInUser.email, loggedInUser.points + rewardPoints);
+        }
+      }
+    } catch (err) {
+      console.warn('Supabase Insert Report Error:', err);
+    }
   };
 
   // Citizen upvotes a reported hotspot to indicate municipal priority
-  const handleUpvoteReport = (reportId: string) => {
+  const handleUpvoteReport = async (reportId: string) => {
     if (!loggedInUser) return;
+    
+    let updatedRep: Report | null = null;
     setReports((prev) =>
       prev.map((r) => {
         if (r.id === reportId && !r.upvotedBy.includes(loggedInUser.email)) {
-          return {
+          updatedRep = {
             ...r,
             upvotes: r.upvotes + 1,
             upvotedBy: [...r.upvotedBy, loggedInUser.email],
           };
+          return updatedRep;
         }
         return r;
       })
     );
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0 && updatedRep) {
+        await updateSupabaseReport(reportId, {
+          upvotes: (updatedRep as Report).upvotes,
+          upvotedBy: (updatedRep as Report).upvotedBy
+        });
+      }
+    } catch (err) {
+      console.warn('Supabase Upvote Sync Error:', err);
+    }
   };
 
   // Volunteer joins a green campaign
-  const handleJoinCampaign = (campaignId: string) => {
+  const handleJoinCampaign = async (campaignId: string) => {
+    let updatedCampaign: Campaign | null = null;
     setCampaigns((prev) =>
       prev.map((c) => {
         if (c.id === campaignId && !c.joined) {
@@ -171,31 +300,60 @@ export default function App() {
           if (loggedInUser) {
             setLoggedInUser((prevUser) => prevUser ? { ...prevUser, points: prevUser.points + c.pointsReward } : null);
           }
-          return {
+          updatedCampaign = {
             ...c,
             volunteersCount: c.volunteersCount + 1,
             joined: true,
           };
+          return updatedCampaign;
         }
         return c;
       })
     );
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0 && updatedCampaign) {
+        await updateSupabaseCampaign(campaignId, {
+          volunteersCount: (updatedCampaign as Campaign).volunteersCount,
+          joined: true
+        });
+        if (loggedInUser) {
+          const campaignReward = (updatedCampaign as Campaign).pointsReward;
+          await updateSupabaseUserPoints(loggedInUser.email, loggedInUser.points + campaignReward);
+        }
+      }
+    } catch (err) {
+      console.warn('Supabase Campaign Join Error:', err);
+    }
   };
 
   // Admin empties / resets an IoT smart container
-  const handleEmptyBin = (binId: string) => {
+  const handleEmptyBin = async (binId: string) => {
+    let updatedBin: SmartBin | null = null;
     setBins((prev) =>
       prev.map((b) => {
         if (b.id === binId) {
-          return {
+          updatedBin = {
             ...b,
             fillLevel: 10,
             lastEmptied: new Date().toISOString().slice(0, 16).replace('T', ' '),
           };
+          return updatedBin;
         }
         return b;
       })
     );
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0 && updatedBin) {
+        await updateSupabaseBin(binId, {
+          fillLevel: 10,
+          lastEmptied: (updatedBin as SmartBin).lastEmptied
+        });
+      }
+    } catch (err) {
+      console.warn('Supabase Bin Empty Error:', err);
+    }
   };
 
   // Citizen simulation click to fill a bin (forces alerting system for testing)
@@ -231,7 +389,7 @@ export default function App() {
   }, [bins]);
 
   // Admin dispatches a truck to a citizen's reported incident
-  const handleDispatchTruck = (truckId: string, reportId: string) => {
+  const handleDispatchTruck = async (truckId: string, reportId: string) => {
     const report = reports.find((r) => r.id === reportId);
     if (!report) return;
 
@@ -240,11 +398,12 @@ export default function App() {
       prev.map((r) => (r.id === reportId ? { ...r, status: 'Dispatched' } : r))
     );
 
+    let updatedTruck: Truck | null = null;
     // Update truck path and routing target
     setTrucks((prev) =>
       prev.map((t) => {
         if (t.id === truckId) {
-          const updatedTruck = {
+          updatedTruck = {
             ...t,
             status: 'En Route' as const,
             assignedReportId: reportId,
@@ -280,10 +439,27 @@ export default function App() {
       })
     );
     setHighlightedId(truckId);
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0) {
+        await updateSupabaseReport(reportId, { status: 'Dispatched' });
+        if (updatedTruck) {
+          await updateSupabaseTruck(truckId, {
+            status: 'En Route',
+            assignedReportId: reportId,
+            speed: 40,
+            route: (updatedTruck as Truck).route,
+            currentRouteIndex: 1
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Supabase Truck Dispatch sync failed:', err);
+    }
   };
 
   // Directly resolve a report from administrative hub
-  const handleResolveReportDirectly = (reportId: string) => {
+  const handleResolveReportDirectly = async (reportId: string) => {
     const report = reports.find((r) => r.id === reportId);
     setReports((prev) =>
       prev.map((r) => (r.id === reportId ? { ...r, status: 'Resolved' } : r))
@@ -305,6 +481,14 @@ export default function App() {
         'Email',
         report.reporterEmail
       );
+    }
+
+    try {
+      if (supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0) {
+        await updateSupabaseReport(reportId, { status: 'Resolved' });
+      }
+    } catch (err) {
+      console.warn('Supabase Direct Resolve sync failed:', err);
     }
   };
 
@@ -662,6 +846,24 @@ export default function App() {
 
           {/* Header Widgets / Notifications / User Widget */}
           <div className="flex items-center gap-3">
+            {/* Supabase status drawer toggle */}
+            <button
+              onClick={() => setShowDbStatus(!showDbStatus)}
+              className={`relative p-2 bg-slate-900 border rounded-lg transition-all hover:bg-slate-850 cursor-pointer ${
+                supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0
+                  ? 'border-emerald-500/20 text-emerald-400 hover:border-emerald-500/50'
+                  : 'border-amber-500/30 text-amber-400 hover:border-amber-500/60'
+              }`}
+              title="Supabase Database Status"
+            >
+              <Database className="w-4 h-4" />
+              <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full ${
+                supabaseStatus.isConnected && supabaseStatus.missingTables.length === 0
+                  ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]'
+                  : 'bg-amber-400 shadow-[0_0_6px_#f59e0b]'
+              }`}></span>
+            </button>
+
             {/* Real-Time Notification Bell */}
             <button
               id="notification-bell-btn"
@@ -707,6 +909,16 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Floating Supabase status panel widget */}
+      {showDbStatus && (
+        <div className="fixed top-18 right-4 z-50 animate-fadeIn max-w-[calc(100vw-2rem)]">
+          <SupabaseStatusPanel 
+            status={supabaseStatus} 
+            onRefresh={triggerDbRefresh} 
+          />
+        </div>
+      )}
 
       {/* Main Content Body */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
@@ -825,7 +1037,12 @@ export default function App() {
                 </div>
               )
             ) : (
-              <PortalAuth onLogin={handleLogin} />
+              <PortalAuth 
+                onLogin={handleLogin} 
+                reports={reports}
+                bins={bins}
+                trucks={trucks}
+              />
             )}
           </>
         )}

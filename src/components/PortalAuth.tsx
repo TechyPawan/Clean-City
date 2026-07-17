@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserRole } from '../types';
+import { UserRole, Report, SmartBin, Truck } from '../types';
 import { 
   Lock, 
   User, 
@@ -12,14 +12,23 @@ import {
   Check, 
   X, 
   HelpCircle,
-  Hash
+  Hash,
+  AlertOctagon,
+  TrendingUp,
+  Award,
+  Users,
+  Trash2,
+  Truck as TruckIcon
 } from 'lucide-react';
 
 interface PortalAuthProps {
   onLogin: (role: UserRole, email: string, name: string) => void;
+  reports?: Report[];
+  bins?: SmartBin[];
+  trucks?: Truck[];
 }
 
-export default function PortalAuth({ onLogin }: PortalAuthProps) {
+export default function PortalAuth({ onLogin, reports = [], bins = [], trucks = [] }: PortalAuthProps) {
   const [selectedRole, setSelectedRole] = useState<UserRole>('public');
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone' | 'facebook'>('email');
   
@@ -105,7 +114,13 @@ export default function PortalAuth({ onLogin }: PortalAuthProps) {
   };
 
   return (
-    <div id="portal-auth-container" className="max-w-md mx-auto bg-slate-900/40 backdrop-blur-md border border-emerald-500/20 rounded-3xl p-8 shadow-neon-emerald space-y-7 relative">
+    <div className={selectedRole === 'admin' 
+      ? "max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch" 
+      : "max-w-md mx-auto"
+    }>
+      {/* Portal Auth Form Column */}
+      <div className={selectedRole === 'admin' ? "lg:col-span-5 flex flex-col justify-between h-full" : ""}>
+        <div id="portal-auth-container" className="h-full bg-slate-900/40 backdrop-blur-md border border-emerald-500/20 rounded-3xl p-8 shadow-neon-emerald space-y-7 relative flex flex-col justify-between">
       <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 rounded-t-3xl"></div>
 
       <div className="text-center space-y-1.5">
@@ -142,49 +157,51 @@ export default function PortalAuth({ onLogin }: PortalAuthProps) {
       </div>
 
       {/* Multi-Method Login Selector */}
-      <div className="space-y-1.5">
-        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Authentication Channel</label>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => setLoginMethod('email')}
-            className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-              loginMethod === 'email'
-                ? 'bg-slate-950 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
-            }`}
-          >
-            <Mail className="w-4 h-4" />
-            Email/Key
-          </button>
+      {selectedRole !== 'admin' && (
+        <div className="space-y-1.5">
+          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Authentication Channel</label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setLoginMethod('email')}
+              className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                loginMethod === 'email'
+                  ? 'bg-slate-950 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                  : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+              }`}
+            >
+              <Mail className="w-4 h-4" />
+              Email/Key
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setLoginMethod('phone')}
-            className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-              loginMethod === 'phone'
-                ? 'bg-slate-950 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
-            }`}
-          >
-            <Smartphone className="w-4 h-4" />
-            Phone SMS
-          </button>
+            <button
+              type="button"
+              onClick={() => setLoginMethod('phone')}
+              className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                loginMethod === 'phone'
+                  ? 'bg-slate-950 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                  : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+              Phone SMS
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setLoginMethod('facebook')}
-            className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 border transition-all cursor-pointer ${
-              loginMethod === 'facebook'
-                ? 'bg-slate-950 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
-            }`}
-          >
-            <Facebook className="w-4 h-4" />
-            Facebook
-          </button>
+            <button
+              type="button"
+              onClick={() => setLoginMethod('facebook')}
+              className={`py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex flex-col items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                loginMethod === 'facebook'
+                  ? 'bg-slate-950 border-emerald-500/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                  : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300'
+              }`}
+            >
+              <Facebook className="w-4 h-4" />
+              Facebook
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ----------------- EMAIL & PASSWORD FORM ----------------- */}
       {loginMethod === 'email' && (
@@ -487,6 +504,167 @@ export default function PortalAuth({ onLogin }: PortalAuthProps) {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+      </div>
+    </div>
+
+      {/* Right Column: All Important Civic Telemetry Dashboard */}
+      {selectedRole === 'admin' && (
+        <div className="lg:col-span-7 flex flex-col justify-between bg-slate-900/40 border border-emerald-500/15 rounded-3xl p-6 backdrop-blur-md shadow-neon-emerald text-left">
+          {/* MUNICIPAL WORKER PREVIEW PANEL */}
+          <div className="space-y-6 animate-fadeIn">
+            <div className="border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-teal-400" />
+                <h3 className="text-sm font-extrabold text-slate-100 uppercase tracking-wider font-sans">
+                  Municipal Worker Dispatch Overview
+                </h3>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Real-time civic telemetry & incident statistics queued for administrators.
+              </p>
+            </div>
+
+            {/* Quick Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Total Reports</span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-3xl font-extrabold text-slate-100 tracking-tight">{reports.length}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">active</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Pending Attention</span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-3xl font-extrabold text-amber-400 tracking-tight">
+                    {reports.filter(r => r.status === 'Pending').length}
+                  </span>
+                  <span className="text-[10px] text-amber-500/70 font-mono">unassigned</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-850 rounded-2xl p-4 flex flex-col justify-between col-span-2 sm:col-span-1">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider font-mono">Urgent Critical</span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-3xl font-extrabold text-rose-500 tracking-tight">
+                    {reports.filter(r => r.urgency === 'High' && r.status !== 'Resolved').length}
+                  </span>
+                  <span className="text-[10px] text-rose-400/70 font-mono">priority</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Critical Urgent Incidents Radar */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                  <AlertOctagon className="w-4 h-4 text-rose-500 animate-pulse" />
+                  Priority Dispatch Queue
+                </h4>
+                <span className="text-[9px] font-mono text-rose-400 uppercase bg-rose-950/40 border border-rose-500/20 px-2 py-0.5 rounded-full">
+                  Action Required
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {reports.filter(r => r.urgency === 'High' && r.status !== 'Resolved').length === 0 ? (
+                  <div className="text-center py-6 bg-slate-950/30 border border-dashed border-slate-800 rounded-xl text-slate-500 text-xs">
+                    No critical incidents currently in queue. Excellent job!
+                  </div>
+                ) : (
+                  reports.filter(r => r.urgency === 'High' && r.status !== 'Resolved').slice(0, 3).map(r => (
+                    <div key={r.id} className="p-3 bg-slate-950/80 border border-rose-500/15 rounded-xl flex items-center justify-between gap-4">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-200 truncate">{r.title}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-850 font-mono text-slate-400 shrink-0 uppercase">
+                            {r.category}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 truncate max-w-md">
+                          Reported by <span className="text-slate-300 font-semibold">{r.reporterName}</span> • Area size: {r.wastageArea || 'Standard'}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-mono font-extrabold text-rose-400 border border-rose-500/20 bg-rose-500/5 px-2 py-1 rounded-lg shrink-0 uppercase">
+                        {r.status}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Top Contributing Citizens / Reporter stats */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <Users className="w-4 h-4 text-teal-400" />
+                Active Civic Citizen Force
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl space-y-2.5">
+                  <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider font-mono">Top Clean-City Envoys</span>
+                  <div className="space-y-2">
+                    {Object.entries(
+                      reports.reduce((acc, r) => {
+                        acc[r.reporterEmail] = {
+                          name: r.reporterName || r.reporterEmail.split('@')[0],
+                          count: (acc[r.reporterEmail]?.count || 0) + 1
+                        };
+                        return acc;
+                      }, {} as Record<string, { name: string; count: number }>)
+                    )
+                      .map(([email, info]) => ({ email, ...info }))
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 3).map((citizen, idx) => (
+                        <div key={citizen.email} className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="w-4.5 h-4.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center font-mono text-[10px] shrink-0 font-extrabold">
+                              {idx + 1}
+                            </span>
+                            <span className="text-slate-300 font-medium truncate">{citizen.name}</span>
+                          </div>
+                          <span className="text-[10px] font-mono text-teal-400 font-bold shrink-0">{citizen.count} reports</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-xl space-y-2.5">
+                  <span className="text-[9px] text-slate-500 font-bold block uppercase tracking-wider font-mono">Infrastructure Assets</span>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 flex items-center gap-1.5">
+                        <Trash2 className="w-3.5 h-3.5 text-slate-500" />
+                        IoT Smart Bins
+                      </span>
+                      <span className="font-mono text-slate-200 font-bold">
+                        {bins.length} <span className="text-[9px] text-slate-500">({bins.filter(b => b.fillLevel >= 80).length} alert)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400 flex items-center gap-1.5">
+                        <TruckIcon className="w-3.5 h-3.5 text-slate-500" />
+                        Fleet Trucks
+                      </span>
+                      <span className="font-mono text-slate-200 font-bold">
+                        {trucks.length} <span className="text-[9px] text-slate-500">({trucks.filter(t => t.status === 'En Route').length} live)</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer helpful walkthrough tips */}
+          <div className="pt-4 border-t border-slate-800/60 flex items-center gap-2 text-[10px] text-slate-500 font-mono">
+            <HelpCircle className="w-4 h-4 shrink-0 text-slate-600" />
+            <span>Interactive Municipal Workspace. Sign in or switch portal view using the toggles on the left.</span>
           </div>
         </div>
       )}

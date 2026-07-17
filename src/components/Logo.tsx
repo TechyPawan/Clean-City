@@ -69,7 +69,7 @@ export default function Logo({ className = '', size = 'md', showText = true }: L
               strokeLinecap="round"
               strokeDasharray="4 2"
               className="animate-[spin_20s_linear_infinite]"
-              transform-origin="50 37"
+              transformOrigin="50 37"
             />
             {/* Center geometric pristine prism leaf veins */}
             <path
